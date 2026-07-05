@@ -1,0 +1,30 @@
+{
+  "music": [
+    {
+      "name": "SEVENTEEN",
+      "artist_id": ""
+    },
+    {
+      "name": "IU",
+      "artist_id": ""
+    }
+  ],
+  "youtube": [
+    {
+      "name": "SEVENTEEN",
+      "channel_id": "UC..."
+    }
+  ],
+  "obsidian_vault": "C:/Users/Hayden Ho/Desktop/notes",
+  "output_folder": "_固定/Entertainment",
+  "options": {
+    "itunes_country": "TW",
+    "music_track_limit": 100,
+    "music_min_year": 2026,
+    "ignore_youtube_shorts": false,
+    "ignore_youtube_live": false
+  },
+  "credentials": {
+    "youtube_api_key": ""
+  }
+}
