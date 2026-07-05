@@ -6,42 +6,73 @@ import urllib.request
 
 from config_loader import MusicArtist
 from database import MediaUpdate
-from music_keys import build_music_update_id
+from music_keys import build_canonical_music_key, build_music_update_id
 
 
 class ITunesClient:
     api_root = "https://itunes.apple.com"
 
-    def __init__(self, country: str = "TW") -> None:
-        self.country = country
+    def __init__(self, countries: list[str] | str | None = None) -> None:
+        if countries is None:
+            self.countries = ["TW"]
+        elif isinstance(countries, str):
+            self.countries = [countries.strip().upper()]
+        else:
+            self.countries = [
+                country.strip().upper()
+                for country in countries
+                if country.strip()
+            ]
 
     def get_artist_tracks(
         self,
         artist: MusicArtist,
         limit: int = 100,
     ) -> list[MediaUpdate]:
-        artist_id = artist.artist_id or self._find_artist_id(artist.name)
-        if not artist_id:
-            return []
+        tracks: list[MediaUpdate] = []
+        seen_keys: set[str] = set()
+        per_country_limit = max(limit, 1)
+        for country in self.countries:
+            artist_id = artist.artist_id or self._find_artist_id(artist.name, country)
+            if not artist_id:
+                continue
 
-        payload = self._lookup_artist_tracks(artist_id, limit)
+            payload = self._lookup_artist_tracks(artist_id, country, per_country_limit)
+            for track in self._tracks_from_payload(payload, artist):
+                key = build_canonical_music_key(
+                    track.artist_name,
+                    track.title,
+                    track.album,
+                )
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                tracks.append(track)
+
+        tracks.sort(key=lambda update: update.publish_date, reverse=True)
+        return tracks[:limit]
+
+    def _tracks_from_payload(
+        self,
+        payload: dict,
+        artist: MusicArtist,
+    ) -> list[MediaUpdate]:
         tracks: list[MediaUpdate] = []
         for item in payload.get("results", []):
             if item.get("wrapperType") != "track" or item.get("kind") != "song":
                 continue
 
             title = item.get("trackName", "").strip()
-            artist_name = item.get("artistName", artist.name).strip()
+            artist_name = artist.name
             album = item.get("collectionName", "").strip()
             publish_date = item.get("releaseDate", "")[:10] or "Unknown date"
-            track_id = str(item.get("trackId") or "")
 
             if not title:
                 continue
 
             tracks.append(
                 MediaUpdate(
-                    update_id=track_id or build_music_update_id(artist_name, title, album),
+                    update_id=build_music_update_id(artist_name, title, album),
                     platform="music",
                     artist_name=artist_name,
                     title=title,
@@ -53,11 +84,11 @@ class ITunesClient:
             )
         return tracks
 
-    def _find_artist_id(self, artist_name: str) -> str:
+    def _find_artist_id(self, artist_name: str, country: str) -> str:
         params = urllib.parse.urlencode(
             {
                 "term": artist_name,
-                "country": self.country,
+                "country": country,
                 "media": "music",
                 "entity": "musicArtist",
                 "attribute": "artistTerm",
@@ -77,11 +108,11 @@ class ITunesClient:
         selected = exact[0] if exact else artists[0]
         return str(selected.get("artistId") or "")
 
-    def _lookup_artist_tracks(self, artist_id: str, limit: int) -> dict:
+    def _lookup_artist_tracks(self, artist_id: str, country: str, limit: int) -> dict:
         params = urllib.parse.urlencode(
             {
                 "id": artist_id,
-                "country": self.country,
+                "country": country,
                 "entity": "song",
                 "limit": str(limit),
             }

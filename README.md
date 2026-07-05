@@ -1,6 +1,6 @@
 # Personal Media Tracker
 
-把你關心的內容更新自動整理到 Obsidian。音樂來源使用 Apple iTunes Search API，固定以台灣商店 `country=TW` 為主；YouTube 仍可用來追蹤頻道影片。
+把你關心的內容更新自動整理到 Obsidian。音樂來源使用 Apple iTunes Search API，預設只查台灣 storefront；YouTube 仍可用來追蹤頻道影片。
 
 ## Features
 
@@ -35,9 +35,9 @@ Edit `config/config.json`:
   "obsidian_vault": "C:/Users/Hayden Ho/Desktop/notes",
   "output_folder": "_固定/Entertainment",
   "options": {
-    "itunes_country": "TW",
+    "itunes_countries": ["TW"],
     "music_track_limit": 100,
-    "music_min_year": 2026,
+    "music_min_year": null,
     "ignore_youtube_shorts": false,
     "ignore_youtube_live": false
   }
@@ -50,7 +50,7 @@ Edit `.env` only if you use YouTube:
 YOUTUBE_API_KEY=your-youtube-api-key
 ```
 
-iTunes Search API does not need an API key.
+iTunes Search API does not need an API key. The default `itunes_countries` is `["TW"]` to keep results cleaner. You can still add other storefronts later, but that may introduce duplicate localized releases.
 
 ## Artist Accuracy
 
@@ -87,6 +87,8 @@ To clear only music rows from SQLite before reloading:
 ```powershell
 python scripts/clear_music_db.py
 ```
+
+If `Music.md` is created but empty, check `music_min_year`. Setting it to `2026` only keeps tracks released in 2026 or later; setting it to `null` shows all fetched tracks.
 
 ## Results
 

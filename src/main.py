@@ -80,12 +80,22 @@ def setup_logging(log_level: str) -> None:
 
 
 def run_music(config, database: TrackerDatabase, writer: MarkdownWriter) -> None:
-    client = ITunesClient(config.options.itunes_country)
+    client = ITunesClient(config.options.itunes_countries)
 
     new_updates: list[MediaUpdate] = []
+    if not config.music:
+        logging.warning("No music artists configured. Skipping music.")
+        writer.append_music([])
+        return
+
     for artist in config.music:
         artist_id = artist.artist_id or artist.name
         database.upsert_artist("itunes", artist_id, artist.name)
+        
+        from music_keys import _canonical_title
+        existing_titles = database.get_all_music_titles(artist.name)
+        canonical_existing = {_canonical_title(t) for t in existing_titles}
+
         tracks = client.get_artist_tracks(
             artist,
             limit=config.options.music_track_limit,
@@ -94,7 +104,15 @@ def run_music(config, database: TrackerDatabase, writer: MarkdownWriter) -> None
             tracks,
             config.options.music_min_year,
         )
-        fresh = _filter_new(database, tracks)
+
+        unique_tracks = []
+        for track in tracks:
+            c_title = _canonical_title(track.title)
+            if c_title not in canonical_existing:
+                unique_tracks.append(track)
+                canonical_existing.add(c_title)
+
+        fresh = _filter_new(database, unique_tracks)
         new_updates.extend(fresh)
         logging.info("iTunes %s: %s new update(s).", artist.name, len(fresh))
 

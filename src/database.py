@@ -146,6 +146,17 @@ class TrackerDatabase:
             return None
         return str(row["status"])
 
+    def get_all_music_titles(self, artist_name: str) -> set[str]:
+        rows = self.connection.execute(
+            """
+            SELECT title
+            FROM updates
+            WHERE platform = 'music' AND artist_name = ?
+            """,
+            (artist_name,),
+        ).fetchall()
+        return {str(row["title"]) for row in rows}
+
     def pending_music_for_artists(self, artist_names: set[str]) -> list[MediaUpdate]:
         normalized_names = {name.casefold() for name in artist_names}
         if not normalized_names:
